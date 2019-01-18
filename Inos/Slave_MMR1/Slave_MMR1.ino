@@ -209,7 +209,10 @@ void direita(int pwm_c, int tempo) {
 }
 
 void para_tudo(int pwm_c) {
-  pwm_control(pwm_c);
+  for(int i=255; i>0; i-10){
+    pwm_control(i);
+    delay(5);
+  }
   digitalWrite(IN1, LOW);
   digitalWrite(IN2, LOW);
   digitalWrite(IN3, LOW);

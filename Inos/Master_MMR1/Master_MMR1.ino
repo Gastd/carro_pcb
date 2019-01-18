@@ -9,11 +9,18 @@
 #define izq PB5
 #define abajo PB6
 
+#define SW_joystick PA5
+#define joystick_X PA0
+#define joystick_Y PA4
+
 int c_s = 0;
+bool switch_cont = true;
 
 void setup() {
+  // Comunicacion serial computador
   Serial.begin(115200);
   Serial.setTimeout(100);
+  // Serial para comunicacion RS485
   Serial1.begin(115200);
   Serial1.setTimeout(100);
 
@@ -31,11 +38,14 @@ void setup() {
   pinMode(abajo, OUTPUT);
   all_off(0);
 
-
   pinMode(relay_slave_ctrl, OUTPUT);
   digitalWrite(relay_slave_ctrl, 0);
 
+  pinMode(SW_joystick, INPUT_PULLUP);
+
   blink_led(300);
+  blink_all_off(4, 200);
+
 
 }// end Setup
 
@@ -102,7 +112,30 @@ void read_input_data(){
       Serial.println("Send a new commandd...");
       Serial.println("O");
       blink_led(150);
+  }else{
+
+    if(digitalRead(SW_joystick) == 0 && switch_cont == true){
+      digitalWrite(relay_slave_ctrl, 1);
+      switch_cont = false;
+      blink_all_off(4, 200);
+      Serial.println("Habilitanto Joystick Control >> On");
+    }
+
+    while(switch_cont == false){
+
+      read_joystick();
+
+      if(digitalRead(SW_joystick) == 0 && switch_cont == false){
+          digitalWrite(relay_slave_ctrl, 0);
+          switch_cont = true;
+          blink_all_off(2, 200);
+          Serial.println("Deshabilitanto Joystick Control >> Off");
+      }
+
+    }
+
   }// End Serial_1 available 
+  
 }// End function read input data serial
 
 
@@ -116,13 +149,13 @@ void mover_carro(int sa, int dir, int pwm_m, int time_m){
       digitalWrite(arriba, 1);
       break;
     case 2:
-      digitalWrite(der, 1);
+      digitalWrite(abajo, 1);
       break;
     case 3:
       digitalWrite(izq, 1);
       break;
     case 4:
-      digitalWrite(abajo, 1);
+      digitalWrite(der, 1);
       break;
   }
   
@@ -140,7 +173,7 @@ void mover_carro(int sa, int dir, int pwm_m, int time_m){
 /************************************************************************/
 void mover_camera(int sa,int sel_motor, int sb_ang1, int src_ang2){
   Serial.print("mover camera >>>>  ");
-  String msg = concat_msg(sa, sel_motor, sb_ang, src_ang);
+  String msg = concat_msg(sa, sel_motor, sb_ang1, src_ang2);
   Serial.print("Mensaje a enviar: ");
   Serial.println(msg);
   serial_print(msg);
@@ -276,4 +309,59 @@ void blink_all_off(int for_b, int time_bao){
     all_off(0);
     delay(time_bao);
   }
+}
+
+void read_joystick(){
+  int jt_x = analogRead(joystick_X);
+  int jt_y = analogRead(joystick_Y);
+
+  /*Serial.print("Valor X: ");
+  Serial.print(jt_x);
+  Serial.print("\t Valor Y: ");
+  Serial.println(jt_y);*/
+
+  delay(100);
+
+  if(jt_x > 2500){ //up
+    mover_carro(1, 1, 254, 1000);
+  }
+
+  if(jt_x < 1600){ // down
+    mover_carro(1, 2, 254, 1000);
+  }
+
+  if(jt_y > 2500){ // left
+    mover_carro(1, 3, 254, 1000);
+  }
+
+  if(jt_y < 1600){ // right
+    mover_carro(1, 4, 254, 1000);
+  }
+}
+
+void retardo_prog(long time_retardo, int habilitacion){
+  unsigned long t_ini = micros() + (1e6 * time_retardo);
+  unsigned long t_fin = micros();
+
+  if(habilitacion == 1){
+    while(t_fin < t_ini){
+      if(digitalRead(SW_joystick) == 0 && switch_cont == false){
+        digitalWrite(relay_slave_ctrl, 0);
+        switch_cont = true;
+        t_fin = t_ini;
+        blink_all_off(2, 200);
+        Serial.println("Deshabilitanto Joystick Control >> Off");
+      }
+      t_fin = micros();
+    }
+  }
+
+  if(habilitacion == 2){
+    while(t_fin < t_ini){
+      t_fin = micros();
+    }
+  }
+
+  
+
 }
